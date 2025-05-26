@@ -1,0 +1,50 @@
+name: Build Firmware
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Let all builds finish even if one fails early
+      fail-fast: false
+      matrix:
+        include:
+          - build-target: f0_module
+          # - build-target: f1_rev2
+          # - build-target: f1_rev3
+          # - build-target: f1_dual
+          # - build-target: f1_dual_rev1
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: recursive
+
+      # Build machines don't have arm-none-eabi gcc, so let's download it and put it on the path
+      - name: Download & Install GCC
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+        run: | # Compiler hosted on our other git repo - avoids having to download from the nice folks at ARM every time
+          wget 'https://github.com/gerefi/build_support/raw/master/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi.tar.xz' -O compiler.tar.xz
+          tar -xvf compiler.tar.xz
+          echo "::add-path::`pwd`/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-eabi/bin"
+
+      # Make sure the compiler we just downloaded works - just print out the version
+      - name: Test Compiler
+        run: arm-none-eabi-gcc -v
+
+      - name: Install build tools
+        run: |
+          sudo apt-get install srecord libarchive-zip-perl
+
+      - name: Build Firmware
+        working-directory: ./firmware/boards/${{matrix.build-target}}
+        run: ./build_wideband.sh
+
+      - name: Attach binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wideband ${{matrix.build-target}}
+          path: ./firmware/deliver/${{matrix.build-target}}/wideband*

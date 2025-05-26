@@ -38,7 +38,10 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get install srecord libarchive-zip-perl
-
+   
+      - name: Set executable permissions for build script
+        run: chmod +x ./build_wideband.sh
+      
       - name: Build Firmware
         working-directory: ./firmware/boards/${{matrix.build-target}}
         run: ./build_wideband.sh
